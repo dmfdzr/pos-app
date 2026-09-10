@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Package, ShoppingCart, Store, Zap, ShieldCheck } from "lucide-react"
+import { Package, Store, Zap, ShieldCheck } from "lucide-react"
 import { createClient } from "@/utils/supabase/server"
 
 export default async function LandingPage() {
@@ -12,8 +12,9 @@ export default async function LandingPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center px-4 md:px-6">
           <div className="flex items-center gap-2 font-bold text-xl text-primary">
-            <Package className="h-6 w-6" />
-            <span>Serenity POS</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/logo.jpg" alt="StockFlow" className="h-8 w-8 rounded-lg object-cover" />
+            <span>StockFlow POS</span>
           </div>
           <nav className="ml-auto flex items-center gap-4 sm:gap-6">
             {user ? (

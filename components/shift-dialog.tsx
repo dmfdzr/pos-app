@@ -8,6 +8,7 @@ import { formatRupiah } from '@/lib/format'
 import { useDictionary } from '@/lib/i18n/use-dictionary'
 import { createClient } from '@/utils/supabase/client'
 import { Wallet, LogOut, Sun, Sunset, Moon, Clock, Receipt, TrendingUp } from 'lucide-react'
+import type { ZReportData } from '@/components/z-report-dialog'
 
 export type ShiftLabel = 'PAGI' | 'SIANG' | 'MALAM'
 
@@ -160,7 +161,7 @@ export function OpenShiftDialog({ open, onClose, onSuccess, storeId, cashierId }
 interface CloseShiftDialogProps {
   open: boolean
   onClose: () => void
-  onSuccess: (reportData?: any) => void
+  onSuccess: (reportData?: ZReportData) => void
   shift: ShiftData
   cashSales: number
   totalTransactions: number

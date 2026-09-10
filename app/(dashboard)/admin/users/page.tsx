@@ -1,7 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { redirect } from "next/navigation"
@@ -74,7 +73,7 @@ export default async function AdminUsersPage() {
                     {p.store?.nama_toko || 'No Store (Global)'}
                   </TableCell>
                   <TableCell>
-                    {/* @ts-ignore - server action return type is compatible at runtime */}
+                    {/* @ts-expect-error - server action return type is compatible at runtime */}
                     <form action={updateUserRoleAndStore} className="flex items-center gap-2">
                       <input type="hidden" name="profile_id" value={p.id} />
                       <Select name="role" defaultValue={p.role || 'CASHIER'}>

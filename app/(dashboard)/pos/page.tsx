@@ -56,6 +56,70 @@ export default function POSPage() {
   const [isCheckingShift, setIsCheckingShift] = useState(true)
   const [shiftStats, setShiftStats] = useState({ cashSales: 0, totalTransactions: 0, totalRevenue: 0, totalNonCash: 0 })
 
+  // Offline capability state
+  type OfflinePayload = {
+    p_store_id: string
+    p_cashier_id: string
+    p_payment_method: PaymentMethod
+    p_amount_paid: number
+    p_notes: string | null
+    p_items: { product_id: string; quantity: number; price_at_time: number }[]
+    p_discount_amount: number
+    p_shift_id: string | undefined
+    p_tax_amount: number
+    p_customer_id: string | null
+  }
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false)
+  const [offlineQueue, setOfflineQueue] = useState<{
+    id: string
+    timestamp: number
+    payload: OfflinePayload
+  }[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = localStorage.getItem('pos_offline_queue')
+      return saved ? JSON.parse(saved) : []
+    } catch { return [] }
+  })
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false)
+    const handleOffline = () => setIsOffline(true)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  const syncOfflineQueue = async () => {
+    if (offlineQueue.length === 0) return
+    setLoading(true)
+    let successful = 0
+
+    for (const item of offlineQueue) {
+      try {
+        const { error } = await supabase.rpc('process_transaction', item.payload)
+        if (!error) {
+          successful++
+        }
+      } catch (err) {
+        console.error('Failed to sync transaction', err)
+      }
+    }
+
+    if (successful > 0) {
+      const remaining = offlineQueue.slice(successful)
+      setOfflineQueue(remaining)
+      localStorage.setItem('pos_offline_queue', JSON.stringify(remaining))
+      alert(`Berhasil sinkronisasi ${successful} transaksi offline!`)
+      mutate()
+    }
+    setLoading(false)
+  }
+
   useEffect(() => {
     const checkShift = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -157,7 +221,7 @@ export default function POSPage() {
         throw new Error(`${dict.pos.notEnoughMoney} ${formatRupiah(finalTotal - paidAmount)}`)
       }
 
-      const { data: txId, error: txError } = await supabase.rpc('process_transaction', {
+      const payload = {
         p_store_id: profile.store_id!,
         p_cashier_id: userData.user.id,
         p_payment_method: paymentMethod,
@@ -172,7 +236,37 @@ export default function POSPage() {
         p_shift_id: activeShift?.id,
         p_tax_amount: taxAmount,
         p_customer_id: customerId !== 'walk-in' ? customerId : null
-      })
+      }
+
+      // If offline, queue transaction locally
+      if (isOffline || !navigator.onLine) {
+        const queueItem = { id: crypto.randomUUID(), timestamp: Date.now(), payload }
+        const newQueue = [...offlineQueue, queueItem]
+        setOfflineQueue(newQueue)
+        localStorage.setItem('pos_offline_queue', JSON.stringify(newQueue))
+        setReceipt({
+          transactionId: queueItem.id,
+          storeName: profile.store?.nama_toko || 'Toko Saya',
+          cashierName: profile.full_name || userData.user.email || 'Kasir',
+          items,
+          subtotal: total,
+          total: finalTotal,
+          discountAmount,
+          taxAmount,
+          paymentMethod,
+          amountPaid: paidAmount,
+          changeAmount: change,
+          createdAt: new Date(),
+        })
+        setReceiptOpen(true)
+        clearCart()
+        setAmountPaid('')
+        setDiscount('')
+        setError('Transaksi disimpan offline. Akan disinkronkan saat online kembali.')
+        return
+      }
+
+      const { data: txId, error: txError } = await supabase.rpc('process_transaction', payload)
 
       if (txError) throw new Error(txError.message)
 
@@ -201,7 +295,7 @@ export default function POSPage() {
     } finally {
       setLoading(false)
     }
-  }, [items, total, finalTotal, discountAmount, paymentMethod, amountPaid, change, clearCart, mutate, supabase, dict])
+  }, [items, total, finalTotal, discountAmount, paymentMethod, amountPaid, change, clearCart, mutate, supabase, dict, activeShift, customerId, taxAmount, isOffline, offlineQueue])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -216,11 +310,12 @@ export default function POSPage() {
 
   const handleCloseShiftClick = async () => {
     if (!activeShift) return
-    // Ambil semua transaksi shift ini untuk summary
+    // Ambil semua transaksi valid (tidak dibatalkan) pada shift ini untuk summary
     const { data } = await supabase
       .from('transactions')
       .select('total_amount, payment_method')
       .eq('shift_id', activeShift.id)
+      .eq('status', 'COMPLETED')
     
     const cashSales = data?.filter(t => t.payment_method === 'TUNAI')
       .reduce((sum, tx) => sum + Number(tx.total_amount), 0) || 0
@@ -271,7 +366,17 @@ export default function POSPage() {
       {/* Header bar untuk POS */}
       <div className="flex flex-col gap-3 mb-4 print:hidden">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold tracking-tight">{dict.dashboard.posTitle}</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold tracking-tight">{dict.dashboard.posTitle}</h1>
+            {isOffline && (
+              <Badge variant="destructive" className="animate-pulse">Offline Mode</Badge>
+            )}
+            {!isOffline && offlineQueue.length > 0 && (
+              <Button variant="outline" size="sm" onClick={syncOfflineQueue} disabled={loading} className="text-orange-600 border-orange-200 bg-orange-50">
+                Sync {offlineQueue.length} Transaksi
+              </Button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {!activeShift && !isCheckingShift && (
               <Button
@@ -313,10 +418,10 @@ export default function POSPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto lg:h-[calc(100vh-12rem)] print:hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto lg:h-[calc(100vh-10rem)] print:hidden">
         {/* Daftar Produk */}
-        <Card className="lg:col-span-2 flex flex-col bg-card/50 backdrop-blur-md shadow-xl border-border/50 overflow-hidden h-[60vh] lg:h-auto">
-          <CardHeader className="border-b bg-card/50 pb-4">
+        <Card className="lg:col-span-2 flex flex-col bg-card/50 backdrop-blur-md shadow-xl border-border/50 overflow-hidden h-[60vh] lg:h-full py-0">
+          <CardHeader className="border-b bg-card/50 pb-4 pt-4 shrink-0">
             <CardTitle>{dict.pos.products}</CardTitle>
             <Input
               id="search-product"
@@ -326,36 +431,36 @@ export default function POSPage() {
               className="mt-2"
             />
           </CardHeader>
-          <CardContent className="flex-1 overflow-auto p-4">
+          <CardContent className="flex-1 overflow-y-auto p-4">
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredProducts.map(product => (
                 <button
                   key={product.id}
                   onClick={() => addItem(product)}
                   disabled={product.stock_quantity <= 0}
-                  className="flex flex-col items-start p-0 border rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all text-left disabled:opacity-40 disabled:cursor-not-allowed group focus:outline-none focus:ring-2 focus:ring-ring overflow-hidden"
+                  className="flex flex-col items-start p-0 border-2 border-border shadow-[2px_2px_0px_0px_var(--color-border)] rounded-2xl bg-card transition-all text-left disabled:opacity-40 disabled:cursor-not-allowed group focus:outline-none focus:ring-2 focus:ring-ring overflow-hidden hover:-translate-y-1 hover:border-primary hover:shadow-[4px_4px_0px_0px_var(--color-primary)]"
                 >
                   {product.image_url && (
-                    <div className="w-full aspect-square bg-muted relative">
+                    <div className="w-full aspect-square bg-muted relative border-b-2 border-border/50 group-hover:border-primary/20 transition-colors">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     </div>
                   )}
-                  <div className="p-4 w-full flex flex-col items-start">
+                  <div className="p-4 w-full flex flex-col items-start bg-card z-10">
                     {product.kategori && (
-                      <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded mb-1.5">
+                      <span className="text-[10px] font-bold tracking-wider uppercase text-secondary-foreground bg-secondary/20 px-2 py-0.5 rounded-sm mb-2">
                         {product.kategori}
                       </span>
                     )}
-                    <span className="font-semibold text-sm leading-tight group-hover:text-primary transition-colors">{product.name}</span>
-                    <span className="text-xs text-muted-foreground mt-1">{product.sku || '—'}</span>
-                    <div className="flex items-center justify-between w-full mt-3">
-                      <span className="font-bold text-primary text-sm">{formatRupiah(product.price)}</span>
+                    <span className="font-heading font-semibold text-base leading-tight group-hover:text-primary transition-colors line-clamp-2">{product.name}</span>
+                    <span className="text-xs text-muted-foreground mt-1 font-mono">{product.sku || '—'}</span>
+                    <div className="flex items-center justify-between w-full mt-4 gap-3">
+                      <span className="font-bold text-primary text-lg shrink-0">{formatRupiah(product.price)}</span>
                       <Badge
                         variant={product.stock_quantity > 10 ? 'secondary' : product.stock_quantity > 0 ? 'outline' : 'destructive'}
-                        className="text-[10px] px-1.5 py-0"
+                        className="text-[10px] px-2 py-0.5 font-bold tracking-wide shrink-0"
                       >
-                        {product.stock_quantity > 0 ? `${dict.inventory.stock}: ${product.stock_quantity}` : dict.pos.outOfStock}
+                        {product.stock_quantity > 0 ? `STOK: ${product.stock_quantity}` : dict.pos.outOfStock}
                       </Badge>
                     </div>
                   </div>
@@ -371,8 +476,8 @@ export default function POSPage() {
         </Card>
 
         {/* Keranjang & Pembayaran */}
-        <Card className="flex flex-col bg-card/50 backdrop-blur-md shadow-xl border-border/50 min-h-[50vh] lg:min-h-0">
-          <CardHeader className="border-b bg-primary/5">
+        <Card className="flex flex-col bg-card/50 backdrop-blur-md shadow-xl border-border/50 min-h-[50vh] lg:min-h-0 lg:h-full py-0 overflow-hidden">
+          <CardHeader className="border-b bg-primary/5 pt-4 pb-4 shrink-0">
             <CardTitle className="flex items-center gap-2">
               <ShoppingCart className="h-5 w-5" />
               {dict.pos.cart}
@@ -382,7 +487,7 @@ export default function POSPage() {
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="flex-1 overflow-auto p-0">
+          <CardContent className="flex-1 overflow-y-auto p-0 min-h-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -432,7 +537,7 @@ export default function POSPage() {
             </Table>
           </CardContent>
 
-          <CardFooter className="flex-col border-t bg-card/50 p-4 gap-4">
+          <CardFooter className="flex-col border-t bg-card/50 p-4 gap-4 shrink-0 overflow-y-auto max-h-[50vh]">
             {/* Subtotal */}
             {discountAmount > 0 && (
               <div className="flex justify-between w-full text-sm text-muted-foreground">
@@ -555,7 +660,7 @@ export default function POSPage() {
 
             <Button
               size="lg"
-              className="w-full h-12 text-base font-bold mt-2"
+              className="w-full h-12 text-base font-bold mt-2 bg-accent text-accent-foreground hover:bg-accent/90 shadow-md transition-all active:scale-[0.98]"
               onClick={handleCheckout}
               disabled={
                 !activeShift ||

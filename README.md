@@ -1,6 +1,6 @@
-# Serenity POS
+# StockFlow POS
 
-Serenity POS adalah sistem Point of Sales (Kasir) berbasis web modern yang mendukung *multi-tenant* (banyak toko), manajemen *shift* kasir, dan dirancang dengan antarmuka pengguna yang responsif serta interaktif. Aplikasi ini dibangun di atas Next.js 14+ dan Supabase.
+StockFlow POS adalah sistem Point of Sales (Kasir) berbasis web modern yang mendukung *multi-tenant* (banyak toko), manajemen *shift* kasir, dan dirancang dengan antarmuka pengguna yang responsif serta interaktif. Aplikasi ini dibangun di atas Next.js 14+ dan Supabase.
 
 ## Fitur Utama
 

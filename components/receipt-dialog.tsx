@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { formatRupiah } from '@/lib/format'
-import { CheckCircle2, Printer, X } from 'lucide-react'
+import { CheckCircle2, Printer } from 'lucide-react'
 import { CartItem } from '@/hooks/use-cart'
 import { useDictionary } from '@/lib/i18n/use-dictionary'
 

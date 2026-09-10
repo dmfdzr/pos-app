@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { formatRupiah } from '@/lib/format'
-import { Printer, X } from 'lucide-react'
+import { Printer } from 'lucide-react'
 
 export interface ZReportData {
   shiftLabel: string

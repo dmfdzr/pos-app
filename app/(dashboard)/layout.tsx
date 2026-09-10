@@ -18,12 +18,18 @@ export default async function DashboardLayout({
     const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     profile = data
 
-    // Low stock count for badge
+    // Low stock count for badge: pastikan filter store_id jika bukan SUPERADMIN
     if (profile) {
-      const { count } = await supabase
+      let query = supabase
         .from('products')
         .select('*', { count: 'exact', head: true })
         .lt('stock_quantity', 5)
+
+      if (profile.role !== 'SUPERADMIN' && profile.store_id) {
+        query = query.eq('store_id', profile.store_id)
+      }
+
+      const { count } = await query
       lowStockCount = count || 0
     }
   }

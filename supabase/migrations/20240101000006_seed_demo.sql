@@ -100,7 +100,7 @@ VALUES
 INSERT INTO stores (id, nama_toko, alamat, telepon)
 VALUES (
   'dddddddd-dddd-dddd-dddd-dddddddddddd',
-  'Toko Serenity Demo',
+  'Toko StockFlow Demo',
   'Jl. Merdeka No. 1, Jakarta',
   '08123456789'
 );
@@ -133,4 +133,4 @@ INSERT INTO products (name, sku, kategori, price, cost_price, stock_quantity, st
 -- 🔴 SUPERADMIN : superadmin@demo.com  / super123
 -- 🟡 OWNER      : owner@demo.com       / owner123
 -- 🟢 KASIR      : kasir@demo.com       / kasir123
--- 🏪 Toko       : Toko Serenity Demo
+-- 🏪 Toko       : Toko StockFlow Demo

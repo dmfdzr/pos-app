@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -23,6 +23,13 @@ export default function CustomersPage() {
   const [formData, setFormData] = useState({ id: '', name: '', phone: '', email: '' })
   const [saving, setSaving] = useState(false)
 
+  const loadCustomers = useCallback(async (sId: string) => {
+    setLoading(true)
+    const { data } = await supabase.from('customers').select('*').eq('store_id', sId).order('name')
+    setCustomers(data || [])
+    setLoading(false)
+  }, [supabase])
+
   useEffect(() => {
     const fetchStore = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -34,14 +41,7 @@ export default function CustomersPage() {
       }
     }
     fetchStore()
-  }, [supabase])
-
-  const loadCustomers = async (sId: string) => {
-    setLoading(true)
-    const { data } = await supabase.from('customers').select('*').eq('store_id', sId).order('name')
-    setCustomers(data || [])
-    setLoading(false)
-  }
+  }, [supabase, loadCustomers])
 
   const filtered = customers.filter(c => 
     c.name.toLowerCase().includes(search.toLowerCase()) || 

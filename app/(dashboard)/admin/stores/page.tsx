@@ -46,11 +46,11 @@ export default async function AdminStoresPage() {
             <CardDescription>Add a new store to the system.</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* @ts-ignore - server action return type is compatible at runtime */}
+            {/* @ts-expect-error - server action return type is compatible at runtime */}
             <form action={createStore} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Store Name</label>
-                <Input name="nama_toko" required placeholder="e.g. Serenity Branch 1" />
+                <Input name="nama_toko" required placeholder="e.g. StockFlow Branch 1" />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Address</label>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { LogOut } from 'lucide-react'
+import { LogOut, Loader2 } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
   Dialog,
@@ -32,6 +32,17 @@ export function LogoutButton({
   }
 
   return (
+    <>
+      {/* Fullscreen Loading Overlay saat logout */}
+      {loading && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-semibold text-primary">Mengakhiri sesi...</p>
+          </div>
+        </div>
+      )}
+
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger className={buttonVariants({ variant: "ghost", size: "sm", className: "gap-2 text-muted-foreground hover:text-destructive" })}>
         <LogOut className="h-4 w-4" />
@@ -49,10 +60,16 @@ export function LogoutButton({
             {textCancel}
           </Button>
           <Button variant="destructive" onClick={handleLogout} disabled={loading}>
-            {loading ? '...' : textLogout}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Keluar...
+              </>
+            ) : textLogout}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

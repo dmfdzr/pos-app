@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
+    --font-heading: var(--font-heading);
     --font-sans: var(--font-sans);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
@@ -48,74 +48,74 @@
 }
 
 :root {
-    --background: #F8FAFC;
-    --foreground: #1E293B;
+    --background: #ECFDF5;
+    --foreground: #064E3B;
     --card: #FFFFFF;
-    --card-foreground: #1E293B;
+    --card-foreground: #064E3B;
     --popover: #FFFFFF;
-    --popover-foreground: #1E293B;
-    --primary: #2563EB;
+    --popover-foreground: #064E3B;
+    --primary: #059669;
     --primary-foreground: #FFFFFF;
-    --secondary: #3B82F6;
-    --secondary-foreground: #FFFFFF;
-    --muted: #E9EFF8;
+    --secondary: #10B981;
+    --secondary-foreground: #0F172A;
+    --muted: #E8F1F3;
     --muted-foreground: #475569;
     --accent: #EA580C;
     --accent-foreground: #FFFFFF;
     --destructive: #DC2626;
     --destructive-foreground: #FFFFFF;
-    --border: #E2E8F0;
-    --input: #E2E8F0;
-    --ring: #2563EB;
+    --border: #A7F3D0;
+    --input: #A7F3D0;
+    --ring: #059669;
     --chart-1: oklch(0.88 0.011 106.6);
     --chart-2: oklch(0.58 0.031 107.3);
     --chart-3: oklch(0.466 0.025 107.3);
     --chart-4: oklch(0.394 0.023 107.4);
     --chart-5: oklch(0.286 0.016 107.4);
-    --radius: 0.625rem;
-    --sidebar: #F8FAFC;
-    --sidebar-foreground: #1E293B;
-    --sidebar-primary: #2563EB;
+    --radius: 0.75rem;
+    --sidebar: #FFFFFF;
+    --sidebar-foreground: #064E3B;
+    --sidebar-primary: #059669;
     --sidebar-primary-foreground: #FFFFFF;
-    --sidebar-accent: #E9EFF8;
-    --sidebar-accent-foreground: #1E293B;
-    --sidebar-border: #E2E8F0;
-    --sidebar-ring: #2563EB;
+    --sidebar-accent: #E8F1F3;
+    --sidebar-accent-foreground: #064E3B;
+    --sidebar-border: #A7F3D0;
+    --sidebar-ring: #059669;
 }
 
 .dark {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --card: #1e293b;
-    --card-foreground: #f8fafc;
-    --popover: #1e293b;
-    --popover-foreground: #f8fafc;
-    --primary: #3b82f6;
-    --primary-foreground: #ffffff;
-    --secondary: #1d4ed8;
-    --secondary-foreground: #ffffff;
-    --muted: #334155;
-    --muted-foreground: #94a3b8;
-    --accent: #ea580c;
-    --accent-foreground: #ffffff;
+    --background: #022C22;
+    --foreground: #ECFDF5;
+    --card: #064E3B;
+    --card-foreground: #ECFDF5;
+    --popover: #064E3B;
+    --popover-foreground: #ECFDF5;
+    --primary: #10B981;
+    --primary-foreground: #FFFFFF;
+    --secondary: #34D399;
+    --secondary-foreground: #022C22;
+    --muted: #065F46;
+    --muted-foreground: #A7F3D0;
+    --accent: #EA580C;
+    --accent-foreground: #FFFFFF;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --border: #334155;
-    --input: #334155;
-    --ring: #3b82f6;
+    --border: #065F46;
+    --input: #065F46;
+    --ring: #10B981;
     --chart-1: oklch(0.88 0.011 106.6);
     --chart-2: oklch(0.58 0.031 107.3);
     --chart-3: oklch(0.466 0.025 107.3);
     --chart-4: oklch(0.394 0.023 107.4);
     --chart-5: oklch(0.286 0.016 107.4);
-    --sidebar: #0f172a;
-    --sidebar-foreground: #f8fafc;
-    --sidebar-primary: #3b82f6;
-    --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #334155;
-    --sidebar-accent-foreground: #f8fafc;
-    --sidebar-border: #334155;
-    --sidebar-ring: #3b82f6;
+    --sidebar: #022C22;
+    --sidebar-foreground: #ECFDF5;
+    --sidebar-primary: #10B981;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #065F46;
+    --sidebar-accent-foreground: #ECFDF5;
+    --sidebar-border: #065F46;
+    --sidebar-ring: #10B981;
 }
 
 @layer base {
@@ -128,4 +128,17 @@
   html {
     @apply font-sans;
     }
+}
+
+@keyframes route-progress {
+  0% { transform: scaleX(0); transform-origin: left; }
+  50% { transform: scaleX(0.7); transform-origin: left; }
+  51% { transform-origin: right; }
+  100% { transform: scaleX(0); transform-origin: right; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none !important;
+  }
 }

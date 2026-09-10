@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Package, ShoppingCart, ArrowRight, TrendingUp, Receipt, AlertTriangle } from "lucide-react"
+import { Package, TrendingUp, Receipt, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getLocale } from "@/lib/i18n/actions"
@@ -39,15 +39,14 @@ export default async function DashboardPage(props: { searchParams: SearchParams 
 
   // Setup queries
   let queryProductsCount = supabase.from('products').select('*', { count: 'exact', head: true })
-  let queryTodayTxns = supabase.from('transactions').select('total_amount, created_at').gte('created_at', todayStart.toISOString())
+  let queryTodayTxns = supabase.from('transactions').select('total_amount, created_at').eq('status', 'COMPLETED').gte('created_at', todayStart.toISOString())
   let queryLowStock = supabase.from('products').select('id, name, stock_quantity').lt('stock_quantity', 5).order('stock_quantity', { ascending: true }).limit(5)
-  let queryLast7Days = supabase.from('transactions').select('total_amount, created_at').gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).order('created_at')
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  let queryLast7Days = supabase.from('transactions').select('total_amount, created_at').eq('status', 'COMPLETED').gte('created_at', sevenDaysAgo.toISOString()).order('created_at')
   
-  // Note: transaction_items doesn't have store_id. But transactions does. 
-  // Wait, transaction_items joins with transactions. We can't filter transaction_items easily by store_id without a join.
-  // We can filter transactions and then get items, but for now we'll do a join or leave it global for top items.
-  // Let's use inner join on transaction_items to filter by store_id if needed.
-  let queryTopItems = supabase.from('transaction_items').select('product_name, quantity, transactions!inner(store_id)').order('quantity', { ascending: false }).limit(20)
+  // Top items should also only count from COMPLETED transactions
+  let queryTopItems = supabase.from('transaction_items').select('product_name, quantity, transactions!inner(store_id, status)').eq('transactions.status', 'COMPLETED').order('quantity', { ascending: false }).limit(20)
 
   if (profile?.role === 'SUPERADMIN' && storeIdParam) {
     queryProductsCount = queryProductsCount.eq('store_id', storeIdParam)

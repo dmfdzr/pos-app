@@ -56,8 +56,9 @@ export function AppSidebar({ profile, userEmail, lowStockCount, locale, children
       >
         <div className="flex h-16 items-center justify-between px-6 border-b">
           <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-            <Package className="h-6 w-6 text-primary" />
-            <span className="text-primary text-xl font-bold tracking-tight">Serenity POS</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/logo.jpg" alt="StockFlow" className="h-7 w-7 rounded-md object-cover shadow-sm" />
+            <span className="text-primary text-xl font-bold tracking-tight">StockFlow POS</span>
           </Link>
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileOpen(false)}>
             <X className="h-5 w-5" />
@@ -82,7 +83,7 @@ export function AppSidebar({ profile, userEmail, lowStockCount, locale, children
                 <Icon className={`h-5 w-5 ${isActive ? 'text-primary' : ''} ${link.textClass || ''}`} />
                 {link.label}
                 {link.badge !== undefined && link.badge > 0 && (
-                  <span className="ml-auto inline-flex items-center justify-center h-5 px-2 rounded-full bg-orange-500 text-white text-[10px] font-bold">
+                  <span className="ml-auto inline-flex items-center justify-center h-5 px-2 rounded-full bg-green-600 dark:bg-green-500 text-white text-[10px] font-bold shadow-sm">
                     {link.badge}
                   </span>
                 )}
@@ -120,16 +121,17 @@ export function AppSidebar({ profile, userEmail, lowStockCount, locale, children
             
             {/* Show title on mobile, or on desktop if sidebar is closed */}
             <div className={`flex items-center gap-2 ml-2 ${isDesktopOpen ? 'md:hidden' : 'hidden md:flex'}`}>
-              <Package className="h-5 w-5 text-primary" />
-              <span className="text-primary font-bold">Serenity POS</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/logo.jpg" alt="StockFlow" className="h-6 w-6 rounded-md object-cover" />
+              <span className="text-primary font-bold">StockFlow POS</span>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
             {lowStockCount > 0 && activeRole !== 'CASHIER' && (
               <Link href="/inventory" className="relative" title="Stok Kritis">
-                <AlertTriangle className="h-5 w-5 text-orange-500" />
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white">
+                <AlertTriangle className="h-5 w-5 text-green-600 dark:text-green-500" />
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-green-600 dark:bg-green-500 text-[10px] font-bold text-white shadow-sm">
                   {lowStockCount}
                 </span>
               </Link>

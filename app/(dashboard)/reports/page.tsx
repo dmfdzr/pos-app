@@ -1,20 +1,17 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import useSWR from 'swr'
 import { createClient } from '@/utils/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatRupiah } from '@/lib/format'
 import { useDictionary } from '@/lib/i18n/use-dictionary'
-import { TrendingUp, Receipt, BarChart3, Download, ChevronRight, Clock, Sun, Sunset, Moon, Wallet, Users } from 'lucide-react'
+import { TrendingUp, Receipt, BarChart3, Download, ChevronRight, Clock, Sun, Sunset, Moon, Users } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import Link from 'next/link'
-import { useEffect } from 'react'
 
 type FilterPeriod = 'today' | '7days' | '30days' | 'all'
 
@@ -161,7 +158,7 @@ export default function ReportsPage() {
     const { data, error } = await query
     if (error) throw error
     return data as Transaction[]
-  }, [period, supabase, getDateFilter, selectedStore, userRole, currentUserId, currentStoreId])
+  }, [supabase, getDateFilter, selectedStore, userRole, currentUserId, currentStoreId])
 
   const { data: transactions, isLoading } = useSWR(
     `reports-${period}-${selectedStore}-${currentUserId}`,
@@ -239,9 +236,9 @@ export default function ReportsPage() {
 
   // Export to CSV
   const exportCsv = () => {
-    if (!transactions?.length) return
+    if (!validTransactions.length) return
     const headers = ['Tanggal', 'No. Transaksi', 'Kasir', 'Metode Bayar', 'Diskon', 'Total']
-    const rows = transactions.map(tx => [
+    const rows = validTransactions.map(tx => [
       new Date(tx.created_at).toLocaleString('id-ID'),
       tx.id.slice(0, 8).toUpperCase(),
       tx.cashier?.full_name || 'N/A',

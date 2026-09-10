@@ -17,22 +17,17 @@ import { useDictionary } from '@/lib/i18n/use-dictionary'
 
 type Product = Database['public']['Tables']['products']['Row']
 
-const KATEGORI_LIST = [
-  'Makanan', 'Minuman', 'Snack', 'Rokok', 'Sembako',
-  'Elektronik', 'Pakaian', 'Perawatan Diri', 'Alat Tulis', 'Lainnya',
-]
-
 type ProductForm = {
   name: string
   sku: string
-  kategori: string
+  kategori: string // store the ID here or string
   price: string
   cost_price: string
   stock_quantity: string
   image_url: string
 }
 
-const EMPTY_FORM: ProductForm = { name: '', sku: '', kategori: '', price: '', cost_price: '', stock_quantity: '', image_url: '' }
+const EMPTY_FORM: ProductForm = { name: '', sku: '', kategori: 'none', price: '', cost_price: '', stock_quantity: '', image_url: '' }
 
 export default function InventoryPage() {
   const supabase = createClient()
@@ -54,17 +49,49 @@ export default function InventoryPage() {
       }
     }
     
-    let query = supabase.from('products').select('*').order('name')
+    let query = supabase.from('products').select('*, category:categories(name)').order('name')
+    let categoryQuery = supabase.from('categories').select('id, name').order('name')
+
     if (selectedStore !== 'ALL') {
       query = query.eq('store_id', selectedStore)
+      categoryQuery = categoryQuery.eq('store_id', selectedStore)
     }
 
-    const { data, error } = await query
-    if (error) throw error
-    return data as Product[]
+    // Handle fallback if migration 009 hasn't been run yet (categories table missing)
+    let productsData: unknown[] = []
+    let categoriesData: { id: string; name: string }[] = []
+
+    try {
+      const [prodRes, catRes] = await Promise.all([query, categoryQuery])
+      if (prodRes.error) throw prodRes.error
+      productsData = prodRes.data ?? []
+      categoriesData = (catRes.data as { id: string; name: string }[] | null) ?? []
+    } catch (err: unknown) {
+      console.warn("Failed fetching categories (maybe migration 009 missing). Falling back to products only.", err)
+      let fallbackQuery = supabase.from('products').select('*').order('name')
+      if (selectedStore !== 'ALL') fallbackQuery = fallbackQuery.eq('store_id', selectedStore)
+      
+      const { data, error } = await fallbackQuery
+      if (error) throw error
+      productsData = data
+      categoriesData = []
+    }
+
+    return { products: productsData as (Product & { category?: { name: string } | null })[], categories: categoriesData }
   }
 
-  const { data: products, error, mutate } = useSWR(`products-${selectedStore}`, fetcher)
+  const { data, error, mutate } = useSWR(`inventory-${selectedStore}`, fetcher)
+  const products = data?.products
+  const categories = data?.categories || []
+
+  // Fallback ke default jika tabel categories belum dibuat di Supabase
+  const effectiveCategories: {id: string, name: string}[] = categories.length > 0
+    ? categories
+    : [
+        'Makanan', 'Minuman', 'Snack', 'Rokok', 'Sembako',
+        'Elektronik', 'Pakaian', 'Perawatan Diri', 'Alat Tulis', 'Lainnya',
+      ].map(k => ({ id: k, name: k }))
+  
   const isSuperAdmin = userRole === 'SUPERADMIN'
   const isReadOnly = userRole === 'CASHIER' || isSuperAdmin
 
@@ -87,6 +114,32 @@ export default function InventoryPage() {
     return Math.round(((price - cost) / price) * 100)
   }
 
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [addingCategory, setAddingCategory] = useState(false)
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return
+    setAddingCategory(true)
+
+    const { data: userData } = await supabase.auth.getUser()
+    if (!userData.user) { setAddingCategory(false); return }
+
+    const { data: profile } = await supabase.from('profiles').select('store_id').eq('id', userData.user.id).single()
+    if (!profile) { setAddingCategory(false); return }
+
+    const { data: newCat, error } = await supabase.from('categories').insert({
+      name: newCategoryName.trim(),
+      store_id: profile.store_id
+    }).select('id, name').single()
+
+    if (!error && newCat) {
+      setForm(f => ({ ...f, kategori: newCat.id }))
+      setNewCategoryName('')
+      mutate()
+    }
+    setAddingCategory(false)
+  }
+
   // === Tambah Produk ===
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,10 +150,15 @@ export default function InventoryPage() {
     const { data: profile } = await supabase.from('profiles').select('store_id').eq('id', userData.user.id).single()
     if (!profile) { setLoading(false); return }
 
+    // Resolve category name from id if possible
+    const selectedCat = effectiveCategories.find(c => c.id === form.kategori)
+    const categoryName = selectedCat ? selectedCat.name : (form.kategori !== 'none' ? form.kategori : null)
+
     await supabase.from('products').insert({
       name: form.name,
       sku: form.sku || null,
-      kategori: form.kategori || null,
+      kategori: categoryName,
+      category_id: selectedCat && categories.length > 0 ? selectedCat.id : null,
       price: parseInt(form.price),
       cost_price: form.cost_price ? parseInt(form.cost_price) : null,
       stock_quantity: parseInt(form.stock_quantity),
@@ -113,12 +171,14 @@ export default function InventoryPage() {
   }
 
   // === Buka Edit ===
-  const openEdit = (p: Product) => {
+  const openEdit = (p: Product & { category?: { name: string } | null; category_id?: string | null }) => {
+    // prefer category_id if exists
+    const catId = (p as unknown as { category_id: string | null }).category_id
     setEditProduct(p)
     setEditForm({
       name: p.name,
       sku: p.sku || '',
-      kategori: p.kategori || '',
+      kategori: catId || p.kategori || 'none',
       price: String(p.price),
       cost_price: p.cost_price ? String(p.cost_price) : '',
       stock_quantity: String(p.stock_quantity),
@@ -132,10 +192,13 @@ export default function InventoryPage() {
     e.preventDefault()
     if (!editProduct) return
     setLoading(true)
+    const selectedCat = effectiveCategories.find(c => c.id === editForm.kategori)
+    const categoryName = selectedCat ? selectedCat.name : (editForm.kategori !== 'none' ? editForm.kategori : null)
     await supabase.from('products').update({
       name: editForm.name,
       sku: editForm.sku || null,
-      kategori: editForm.kategori || null,
+      kategori: categoryName,
+      category_id: selectedCat && categories.length > 0 ? selectedCat.id : null,
       price: parseInt(editForm.price),
       cost_price: editForm.cost_price ? parseInt(editForm.cost_price) : null,
       stock_quantity: parseInt(editForm.stock_quantity),
@@ -181,11 +244,17 @@ export default function InventoryPage() {
     setRestockLoading(false)
   }
 
+  const [page, setPage] = useState(1)
+  const pageSize = 10
+
   const filtered = products?.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.sku?.toLowerCase().includes(search.toLowerCase()) ||
     p.kategori?.toLowerCase().includes(search.toLowerCase())
   ) || []
+
+  const totalPages = Math.ceil(filtered.length / pageSize)
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize)
 
   return (
     <div className="space-y-6">
@@ -212,8 +281,8 @@ export default function InventoryPage() {
             </div>
           )}
           {!isSuperAdmin && isReadOnly && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-full border">
-              <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+            <div className="flex items-center gap-2 text-sm font-medium text-white bg-green-600 dark:bg-green-700 px-3 py-1.5 rounded-full shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-white animate-pulse"></span>
               Mode Lihat Saja — Kasir dapat tambah stok
             </div>
           )}
@@ -239,15 +308,38 @@ export default function InventoryPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">{dict.inventory.category}</label>
-                  <Select value={form.kategori || 'none'} onValueChange={(v) => setForm(f => ({...f, kategori: String(v === 'none' ? '' : v)}))}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder={dict.inventory.selectCategory} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{dict.inventory.selectCategory}</SelectItem>
-                      {KATEGORI_LIST.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select value={form.kategori || 'none'} onValueChange={(v) => setForm(f => ({...f, kategori: String(v)}))}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder={dict.inventory.selectCategory} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">{dict.inventory.selectCategory}</SelectItem>
+                        {effectiveCategories.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Quick Add Category */}
+                  {categories.length > 0 && (
+                    <div className="flex gap-2 mt-2">
+                      <Input 
+                        placeholder="Kategori baru" 
+                        value={newCategoryName} 
+                        onChange={e => setNewCategoryName(e.target.value)} 
+                        className="text-sm h-9"
+                      />
+                      <Button 
+                        type="button" 
+                        variant="secondary" 
+                        size="sm" 
+                        className="h-9 whitespace-nowrap px-3 font-semibold"
+                        onClick={handleAddCategory}
+                        disabled={addingCategory || !newCategoryName.trim()}
+                      >
+                        {addingCategory ? '...' : 'Tambah Kategori'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
@@ -264,8 +356,30 @@ export default function InventoryPage() {
                   <Input required type="number" min="0" value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))} placeholder="10" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">URL Foto (Opsional)</label>
-                  <Input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+                  <label className="text-sm font-medium text-muted-foreground">Foto Produk (Opsional)</label>
+                  <div className="flex gap-2 items-center">
+                    <Input type="file" accept="image/*" onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      setLoading(true)
+                      const fileName = `${Date.now()}-${file.name}`
+                      const { error: uploadError } = await supabase.storage.from('products').upload(fileName, file)
+                      if (uploadError) {
+                        alert('Gagal upload: ' + uploadError.message)
+                      } else {
+                        const { data } = supabase.storage.from('products').getPublicUrl(fileName)
+                        setForm(f => ({ ...f, image_url: data.publicUrl }))
+                      }
+                      setLoading(false)
+                    }} className="flex-1" />
+                  </div>
+                  {form.image_url && (
+                    <div className="mt-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={form.image_url} alt="Preview" className="h-20 w-20 object-cover rounded-md border" />
+                    </div>
+                  )}
+                  <Input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://... atau upload di atas" className="mt-2" />
                 </div>
                 <Button type="submit" disabled={loading} className="w-full">
                   {loading ? dict.common.loading : dict.inventory.addProduct}
@@ -279,7 +393,7 @@ export default function InventoryPage() {
         <Card className={`${isReadOnly ? 'col-span-full' : 'md:col-span-2'} bg-card/50 backdrop-blur-md shadow-xl border-border/50`}>
           <CardHeader>
             <CardTitle>{dict.inventory.catalog}</CardTitle>
-            <Input className="mt-2" placeholder={dict.inventory.searchPlaceholder} value={search} onChange={e => setSearch(e.target.value)} />
+            <Input className="mt-2" placeholder={dict.inventory.searchPlaceholder} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
           </CardHeader>
           <CardContent>
             {error ? (
@@ -302,7 +416,7 @@ export default function InventoryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map(p => {
+                  {paginated.map(p => {
                     const margin = getMargin(p.price, p.cost_price)
                     return (
                       <TableRow key={p.id}>
@@ -323,7 +437,7 @@ export default function InventoryPage() {
                         </TableCell>
                         <TableCell className="px-4 py-3 text-center">
                           <Badge variant={p.stock_quantity > 10 ? 'default' : p.stock_quantity > 0 ? 'outline' : 'destructive'}
-                            className={p.stock_quantity < 5 && p.stock_quantity > 0 ? 'border-orange-500 text-orange-600' : ''}>
+                            className={p.stock_quantity < 5 && p.stock_quantity > 0 ? 'border-green-600 text-green-700 dark:border-green-500 dark:text-green-400 bg-green-50 dark:bg-green-950/40' : ''}>
                             {p.stock_quantity}
                           </Badge>
                         </TableCell>
@@ -360,6 +474,22 @@ export default function InventoryPage() {
               </Table>
               </div>
             )}
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t p-4">
+                <div className="text-sm text-muted-foreground">
+                  Halaman {page} dari {totalPages} ({filtered.length} total)
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                    Sebelumnya
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                    Selanjutnya
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -381,13 +511,13 @@ export default function InventoryPage() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">{dict.inventory.category}</label>
-              <Select value={editForm.kategori || 'none'} onValueChange={(v) => setEditForm(f => ({...f, kategori: String(v === 'none' ? '' : v)}))}>
+              <Select value={editForm.kategori || 'none'} onValueChange={(v) => setEditForm(f => ({...f, kategori: String(v)}))}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder={dict.inventory.selectCategory} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{dict.inventory.selectCategory}</SelectItem>
-                  {KATEGORI_LIST.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                  {effectiveCategories.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -406,8 +536,30 @@ export default function InventoryPage() {
               <Input required type="number" min="0" value={editForm.stock_quantity} onChange={e => setEditForm(f => ({ ...f, stock_quantity: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">URL Foto (Opsional)</label>
-              <Input value={editForm.image_url} onChange={e => setEditForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+              <label className="text-sm font-medium text-muted-foreground">Foto Produk (Opsional)</label>
+              <div className="flex gap-2 items-center">
+                <Input type="file" accept="image/*" onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  setLoading(true)
+                  const fileName = `${Date.now()}-${file.name}`
+                  const { error: uploadError } = await supabase.storage.from('products').upload(fileName, file)
+                  if (uploadError) {
+                    alert('Gagal upload: ' + uploadError.message)
+                  } else {
+                    const { data } = supabase.storage.from('products').getPublicUrl(fileName)
+                    setEditForm(f => ({ ...f, image_url: data.publicUrl }))
+                  }
+                  setLoading(false)
+                }} className="flex-1" />
+              </div>
+              {editForm.image_url && (
+                <div className="mt-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={editForm.image_url} alt="Preview" className="h-20 w-20 object-cover rounded-md border" />
+                </div>
+              )}
+              <Input value={editForm.image_url} onChange={e => setEditForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://... atau upload di atas" className="mt-2" />
             </div>
             <div className="flex gap-3 pt-4">
               <Button variant="outline" type="button" className="flex-1" onClick={() => setEditOpen(false)}>{dict.common.cancel}</Button>
