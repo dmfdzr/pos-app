@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Package, Store, Zap, ShieldCheck } from "lucide-react"
+import { Store, Zap, ShieldCheck } from "lucide-react"
 import { createClient } from "@/utils/supabase/server"
 
 export default async function LandingPage() {
