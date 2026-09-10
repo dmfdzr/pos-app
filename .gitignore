@@ -1,4 +1,5 @@
 # dependencies
+/worker
 /node_modules
 /.pnp
 .pnp.*
@@ -34,3 +35,20 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ai
+.agents
+skills-lock.json
+
+# doc
+01-PRD.md
+02-DESIGN.md
+03-SCHEME.md
+04-ARCHITECTURE.md
+05-RULES.md
+MASTER.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
