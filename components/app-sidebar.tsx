@@ -57,7 +57,7 @@ export function AppSidebar({ profile, userEmail, lowStockCount, locale, children
         <div className="flex h-16 items-center justify-between px-6 border-b">
           <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/logo.jpg" alt="StockFlow" className="h-7 w-7 rounded-md object-cover shadow-sm" />
+            <img src="/assets/logo.png" alt="StockFlow" className="h-7 w-7 rounded-md object-contain" />
             <span className="text-primary text-xl font-bold tracking-tight">StockFlow POS</span>
           </Link>
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileOpen(false)}>
@@ -122,7 +122,7 @@ export function AppSidebar({ profile, userEmail, lowStockCount, locale, children
             {/* Show title on mobile, or on desktop if sidebar is closed */}
             <div className={`flex items-center gap-2 ml-2 ${isDesktopOpen ? 'md:hidden' : 'hidden md:flex'}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/logo.jpg" alt="StockFlow" className="h-6 w-6 rounded-md object-cover" />
+              <img src="/assets/logo.png" alt="StockFlow" className="h-6 w-6 rounded-md object-contain" />
               <span className="text-primary font-bold">StockFlow POS</span>
             </div>
           </div>

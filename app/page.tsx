@@ -13,7 +13,7 @@ export default async function LandingPage() {
         <div className="container mx-auto flex h-16 items-center px-4 md:px-6">
           <div className="flex items-center gap-2 font-bold text-xl text-primary">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/logo.jpg" alt="StockFlow" className="h-8 w-8 rounded-lg object-cover" />
+            <img src="/assets/logo.png" alt="StockFlow" className="h-8 w-8 rounded-lg object-contain" />
             <span>StockFlow POS</span>
           </div>
           <nav className="ml-auto flex items-center gap-4 sm:gap-6">
@@ -32,7 +32,7 @@ export default async function LandingPage() {
 
       <main className="flex-1">
         <section className="w-full py-24 md:py-32 lg:py-48 flex flex-col items-center justify-center text-center px-4">
-          <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20"></div>
+          <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[16px_16px] mask-[radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20"></div>
           
           <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary/10 text-primary mb-6">
             v1.0 Now Live
@@ -41,7 +41,7 @@ export default async function LandingPage() {
             Modern Retail Management, <br className="hidden sm:inline" />
             <span className="text-primary">Simplified.</span>
           </h1>
-          <p className="mt-6 max-w-[600px] text-muted-foreground md:text-xl">
+          <p className="mt-6 max-w-150 text-muted-foreground md:text-xl">
             A blazing-fast Point of Sale and Inventory system built for multi-tenant scalability. Secure, real-time, and beautifully designed.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4">
